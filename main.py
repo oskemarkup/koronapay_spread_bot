@@ -137,8 +137,6 @@ for bundle in bundles:
     korona_params = bundle.get("korona_params", {})
     fee_function = bundle.get("fee_function", add_fee)
 
-    old = data.get(tag + "_rate", 0)
-    old_with_fee = data.get(tag + "_rate_with_fee", 0)
     fee = fees_data.get(tag, config.default_fee)
     rate = get_korona_rate(korona_params)
     rate_with_fee = fee_function(rate, fee)
@@ -148,10 +146,10 @@ for bundle in bundles:
     rates += f"\U0001F451{name} {rate} ({rate_with_fee})\n"
     fees += f"\U0001F4B1{name} {fee}%\n"
 
-    new_data[tag + "_rate"] = rate
-    new_data[tag + "_rate_with_fee"] = rate_with_fee
+    new_data[tag] = spread
+    old_spread = data.get(tag, 0)
 
-    if (old != rate or old_with_fee != rate_with_fee):
+    if (spread > 0 and abs(old_spread - spread) >= 0.5):
         is_changed = True
 
 if (is_changed is True):
