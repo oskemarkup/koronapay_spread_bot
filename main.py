@@ -5,6 +5,21 @@ import json
 import config
 
 # Functions
+def get_pexpay_rate(params):
+    url = "https://www.pexpay.com/bapi/c2c/v1/friendly/c2c/ad/search"
+    binance_params = {
+        "asset": "USDT",
+        "page": 1,
+        "rows": 1,
+    }
+    binance_params.update(params)
+    headers = {
+        "Content-Type": "application/json",
+    }
+    response = requests.request("POST", url, data=json.dumps(binance_params), headers=headers)
+
+    return float(response.json().get("data")[0].get("adDetailResp").get("price"))
+
 def get_binance_rate(params):
     url = "https://p2p.binance.com/bapi/c2c/v2/friendly/c2c/adv/search"
     binance_params = {
@@ -63,14 +78,19 @@ def print_spread(spread):
 
     return f"<s>{spread}%</s>"
 
-def turkey_try_to_usdt(rate, fee):
-    usdt_rate = get_binance_rate({
+def turkey_try_to_usdt():
+    return get_pexpay_rate({
         "fiat": "TRY",
         "tradeType": "Buy",
-        "payTypes": ["KoronaPay"]
-    })    
+        "payTypes": ["koronapay"]
+    })
 
-    return add_fee(rate * usdt_rate, fee)
+def turkey_usd_to_usdt():
+    return get_pexpay_rate({
+        "fiat": "USD",
+        "tradeType": "Buy",
+        "payTypes": ["koronapay"]
+    })
 
 bundles = [
     {
@@ -80,7 +100,7 @@ bundles = [
             "receivingCountryId": "TUR",
             "receivingCurrencyId": "949",
         },
-        "fee_function": turkey_try_to_usdt,
+        "usdt_rate_function": turkey_try_to_usdt,
     },
     {
         "name": "\U0001f1f9\U0001f1f7 $",
@@ -89,6 +109,7 @@ bundles = [
             "receivingCountryId": "TUR",
             "receivingCurrencyId": "840",
         },
+        "usdt_rate_function": turkey_usd_to_usdt,
     },
     {
         "name": "\U0001f1f9\U0001f1f7 \u20AC",
@@ -116,19 +137,27 @@ try:
 except:
   data = {}
 
-fees_data = requests.get(config.fees_url).json()
+rates_data = requests.get(config.rates_url).json()
 
-usdt_sell = get_binance_rate({
+usdt_sell_binance = get_binance_rate({
     "fiat": "RUB",
     "tradeType": "Sell",
     "payTypes": ["TinkoffNew", "RosBankNew", "RaiffeisenBank"]
 })
 
+usdt_sell_pexpay = get_pexpay_rate({
+    "fiat": "RUB",
+    "tradeType": "Sell",
+    "payTypes": ["Tinkoff", "Sberbank"]
+})
+
 spreads = ""
 rates = ""
-fees = ""
+pexpay_rates = ""
+my_rates = ""
 new_data = {
-    "usdt_sell": usdt_sell,
+    "usdt_sell_binance": usdt_sell_binance,
+    "usdt_sell_pexpay": usdt_sell_pexpay,
 }
 
 is_changed = True
@@ -140,24 +169,29 @@ for bundle in bundles:
     name = bundle.get("name", "")
     tag = bundle.get("tag", "")
     korona_params = bundle.get("korona_params", {})
-    fee_function = bundle.get("fee_function", add_fee)
 
-    fee = fees_data.get(tag, config.default_fee)
-    rate = get_korona_rate(korona_params)
-    rate_with_fee = fee_function(rate, fee)
-    spread = calc_spread(rate_with_fee, usdt_sell)
+    usdt_rate_function = bundle.get("usdt_rate_function")
+    rate = rates_data.get(tag, config.default_rate)
 
+    if (usdt_rate_function is not None):
+        usdt_rate = min(rate, usdt_rate_function())
+    else:
+        usdt_rate = rate
+
+    korona_rate = get_korona_rate(korona_params)
+    buy_price = korona_rate * usdt_rate    
+    spread = calc_spread(buy_price, max(usdt_sell_binance, usdt_sell_pexpay))
     spreads += f"{name} {print_spread(spread)}\n"
-    rates += f"\U0001F451{name} {rate} ({rate_with_fee})\n"
-    fees += f"\U0001F4B1{name} {fee}%\n"
+    rates += f"\U0001F451{name} {korona_rate} ({buy_price})\n"
+    pexpay_rates += f"\U0001F4B1{name} {usdt_rate}\n"
+    my_rates += f"\U0001F4B1{name} {rate}\n"
 
+    new_data[tag] = spread
     old_spread = data.get(tag, 0)
 
     if (spread > 0 and abs(old_spread - spread) >= 0.5):
         is_changed = True
-        new_data[tag] = spread
 
 if (is_changed is True):
-    send_msg(spreads + "\n" + rates + "\n" + fees + "\n" + f"\u2B05 {usdt_sell} \u20BD")
-
-json.dump(new_data, open(config.file_name, "w+"))
+    send_msg(spreads + "\n" + rates + "\nPexpay\n" + pexpay_rates + "\nOffline\n" + my_rates + "\n" + f"Binance \u2B05 {usdt_sell_binance} \u20BD"+ "\n" + f"Pexpay \u2B05 {usdt_sell_pexpay} \u20BD")
+    json.dump(new_data, open(config.file_name, "w+"))

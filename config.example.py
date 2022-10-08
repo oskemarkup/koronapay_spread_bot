@@ -1,5 +1,5 @@
 token = "0:token"
 chat_id = "0"
 file_name = "data.json"
-fees_url = "https://api.npoint.io/f8340c20da1dae62177a"
-default_fee = 0
+rates_url = "https://api.npoint.io/7a5da35cbf85058d319a"
+default_rate = 1
