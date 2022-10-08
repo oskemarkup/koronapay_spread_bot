@@ -160,7 +160,7 @@ new_data = {
     "usdt_sell_pexpay": usdt_sell_pexpay,
 }
 
-is_changed = True
+is_changed = False
 
 for bundle in bundles:
     if (bundle.get("disabled", False) is True):
