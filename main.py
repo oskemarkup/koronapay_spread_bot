@@ -174,7 +174,9 @@ for bundle in bundles:
     rate = rates_data.get(tag, config.default_rate)
 
     if (usdt_rate_function is not None):
-        usdt_rate = min(rate, usdt_rate_function())
+        pexpay_rate = usdt_rate_function()
+        pexpay_rates += f"\U0001F4B1{name} {pexpay_rate}\n"
+        usdt_rate = min(rate, pexpay_rate)
     else:
         usdt_rate = rate
 
@@ -183,7 +185,6 @@ for bundle in bundles:
     spread = calc_spread(buy_price, max(usdt_sell_binance, usdt_sell_pexpay))
     spreads += f"{name} {print_spread(spread)}\n"
     rates += f"\U0001F451{name} {korona_rate} ({buy_price})\n"
-    pexpay_rates += f"\U0001F4B1{name} {usdt_rate}\n"
     my_rates += f"\U0001F4B1{name} {rate}\n"
 
     new_data[tag] = spread
