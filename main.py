@@ -97,6 +97,7 @@ bundles = [
             "receivingCountryId": "TUR",
             "receivingCurrencyId": "978",
         },
+        "disabled": True,
     },
     {
         "name": "\U0001F1EC\U0001F1EA $",
@@ -105,6 +106,7 @@ bundles = [
             "receivingCountryId": "GEO",
             "receivingCurrencyId": "840",
         },
+        "disabled": True,
     },
 ]
 
@@ -129,9 +131,12 @@ new_data = {
     "usdt_sell": usdt_sell,
 }
 
-is_changed = False
+is_changed = True
 
 for bundle in bundles:
+    if (bundle.get("disabled", False) is True):
+        continue
+
     name = bundle.get("name", "")
     tag = bundle.get("tag", "")
     korona_params = bundle.get("korona_params", {})
@@ -146,11 +151,11 @@ for bundle in bundles:
     rates += f"\U0001F451{name} {rate} ({rate_with_fee})\n"
     fees += f"\U0001F4B1{name} {fee}%\n"
 
-    new_data[tag] = spread
     old_spread = data.get(tag, 0)
 
     if (spread > 0 and abs(old_spread - spread) >= 0.5):
         is_changed = True
+        new_data[tag] = spread
 
 if (is_changed is True):
     send_msg(spreads + "\n" + rates + "\n" + fees + "\n" + f"\u2B05 {usdt_sell} \u20BD")
